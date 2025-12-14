@@ -1,0 +1,9 @@
+{
+  "name": "IRSW - Intelligent Restaurant Workflow",
+  "description": "A comprehensive restaurant management system featuring POS, KDS, Admin Dashboard, and AI-driven workflows for menu digitization and voice ordering.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone",
+    "geolocation"
+  ]
+}
