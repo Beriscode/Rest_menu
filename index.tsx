@@ -17,29 +17,30 @@ const initApp = () => {
     </React.StrictMode>
   );
 
-  // Service Worker Registration with Origin Validation
+  /**
+   * Service Worker Registration with Enhanced Sandbox Protection
+   * In many cloud preview environments (like AI Studio), service workers are restricted 
+   * due to cross-origin isolation or iframe sandboxing.
+   */
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
-      try {
-        // Resolve Service Worker URL explicitly against current window location
-        const swUrl = new URL('./sw.js', window.location.href).href;
-        
-        // Only attempt registration if the script is on the same origin as the current page
-        // to avoid "SecurityError: The origin of the provided scriptURL does not match..."
-        if (new URL(swUrl).origin === window.location.origin) {
-          navigator.serviceWorker.register(swUrl)
-            .then(registration => {
-              console.debug('IRSW Service Worker active:', registration.scope);
-            })
-            .catch(err => {
-              console.warn('IRSW Service Worker failed to initialize:', err);
-            });
-        } else {
-          console.debug('IRSW Service Worker skipped: Origin mismatch in preview environment.');
-        }
-      } catch (e) {
-        console.warn('IRSW Service Worker setup error:', e);
-      }
+      // Use a relative path directly for the service worker. 
+      // Browsers handle relative paths better in sandboxes than absolute URLs.
+      const swPath = './sw.js';
+      
+      navigator.serviceWorker.register(swPath)
+        .then(registration => {
+          console.debug('IRSW Service Worker registered:', registration.scope);
+        })
+        .catch(err => {
+          // Log as debug rather than error if it's a known origin/security mismatch 
+          // to keep the console clean for developers.
+          if (err.name === 'SecurityError' || err.message.includes('origin')) {
+            console.debug('IRSW Service Worker skipped: Environment restriction (Cross-Origin/Sandbox).');
+          } else {
+            console.warn('IRSW Service Worker failed to initialize:', err);
+          }
+        });
     });
   }
 };
