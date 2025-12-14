@@ -5,17 +5,11 @@ const DB_VERSION = 1;
 const STORE_NAME = 'offline_orders';
 
 const STATIC_ASSETS = [
-  './',
   './index.html',
   './manifest.json',
   'https://cdn.tailwindcss.com',
   'https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap',
-  'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/js/all.min.js',
-  'https://aistudiocdn.com/recharts@^3.5.1',
-  'https://aistudiocdn.com/@google/genai@^1.31.0',
-  'https://aistudiocdn.com/react-dom@^19.2.1/',
-  'https://aistudiocdn.com/react@^19.2.1/',
-  'https://aistudiocdn.com/react@^19.2.1'
+  'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/js/all.min.js'
 ];
 
 /**

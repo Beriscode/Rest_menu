@@ -15,16 +15,17 @@ import {
   Table,
   TableStatus,
   Notification
-} from './types';
+} from './types.ts';
 import { 
   INITIAL_CATEGORIES, 
   INITIAL_MENU, 
   INITIAL_INGREDIENTS,
   INITIAL_TABLES,
-  MOCK_ORDERS 
-} from './constants';
-import { parseVoiceOrder, digitizeMenuFromImage } from './services/geminiService';
-import { Sidebar } from './components/Sidebar';
+  MOCK_ORDERS,
+  RESTAURANT_NAME 
+} from './constants.ts';
+import { parseVoiceOrder, digitizeMenuFromImage } from './services/geminiService.ts';
+import { Sidebar } from './components/Sidebar.tsx';
 import { 
     PaymentModal, 
     ConfirmationModal, 
@@ -37,12 +38,12 @@ import {
     ReceiptModal,
     OrderSummaryModal,
     TableSelectionModal
-} from './components/Modals';
+} from './components/Modals.tsx';
 
-const AuthView = React.lazy(() => import('./views/AuthView'));
-const POSView = React.lazy(() => import('./views/POSView'));
-const KDSView = React.lazy(() => import('./views/KDSView'));
-const AdminView = React.lazy(() => import('./views/AdminView'));
+const AuthView = React.lazy(() => import('./views/AuthView.tsx'));
+const POSView = React.lazy(() => import('./views/POSView.tsx'));
+const KDSView = React.lazy(() => import('./views/KDSView.tsx'));
+const AdminView = React.lazy(() => import('./views/AdminView.tsx'));
 
 interface UserProfile {
     name: string;
@@ -95,6 +96,7 @@ const App = () => {
   const [user, setUser] = useState<UserProfile | null>(null);
   const [activeView, setActiveView] = useState<string>('POS');
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [isOffline, setIsOffline] = useState(!navigator.onLine);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [syncCount, setSyncCount] = useState(0);
@@ -268,6 +270,7 @@ const App = () => {
 
   const handleChangeView = useCallback((view: string) => {
     setActiveView(view);
+    setIsMobileSidebarOpen(false);
     if (view === 'KDS' || view.startsWith('ADMIN')) {
       setIsSidebarCollapsed(true);
     }
@@ -610,10 +613,23 @@ const App = () => {
                     onLogout={handleLogout} 
                     isCollapsed={isSidebarCollapsed}
                     onToggleCollapse={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+                    isMobileOpen={isMobileSidebarOpen}
+                    onMobileClose={() => setIsMobileSidebarOpen(false)}
                     badges={sidebarBadges}
                 />
                 
-                <main className={`transition-all duration-300 h-screen ${isSidebarCollapsed ? 'pl-20' : 'pl-72'}`}>
+                <main className={`transition-all duration-300 h-screen ${isSidebarCollapsed ? 'md:pl-20' : 'md:pl-72'} pl-0`}>
+                    {/* Mobile Header Toggle */}
+                    <div className="md:hidden flex items-center justify-between p-4 bg-white border-b border-slate-100 shrink-0 h-16 relative z-40">
+                      <button onClick={() => setIsMobileSidebarOpen(true)} className="w-10 h-10 flex items-center justify-center text-slate-900">
+                        <i className="fas fa-bars-staggered text-xl"></i>
+                      </button>
+                      <span className="font-black text-sm tracking-tighter uppercase">{RESTAURANT_NAME}</span>
+                      <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center text-xs font-black">
+                        {user.name.charAt(0)}
+                      </div>
+                    </div>
+
                     {(activeView === 'POS' || activeView === 'CUSTOMER') && (
                         <>
                         <POSView 
