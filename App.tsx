@@ -57,37 +57,25 @@ interface UserProfile {
 const LoadingFallback = () => (
     <div className="flex items-center justify-center h-screen bg-gray-50">
         <div className="text-center animate-pulse">
-            <i className="fas fa-circle-notch fa-spin text-4xl text-brand-600 mb-4"></i>
-            <p className="text-gray-500 font-medium">Initializing Core...</p>
+            <div className="w-16 h-16 bg-brand-600 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-glow">
+                <i className="fas fa-bolt-lightning text-white text-2xl"></i>
+            </div>
+            <p className="text-slate-900 font-black uppercase tracking-widest text-xs">Synchronizing Core...</p>
         </div>
     </div>
 );
 
 const ConnectivityBanner = ({ isOffline, syncCount }: { isOffline: boolean, syncCount: number }) => {
-  if (!isOffline && syncCount === 0) return (
-    <div className="fixed top-0 left-0 right-0 z-[200] bg-emerald-500 text-white px-4 py-1.5 text-center text-[9px] font-black uppercase tracking-widest animate-in slide-in-from-top duration-300 pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity">
-      <i className="fas fa-circle-check mr-2"></i> 
-      System Synchronized
-    </div>
-  );
-
-  if (!isOffline && syncCount > 0) return (
-    <div className="fixed top-0 left-0 right-0 z-[200] bg-brand-600 text-white px-4 py-2 text-center text-xs font-black uppercase tracking-[0.2em] shadow-xl animate-in slide-in-from-top duration-500 flex items-center justify-center gap-4">
-      <div className="flex items-center gap-2">
-        <i className="fas fa-tower-broadcast animate-pulse"></i> 
-        <span>Uplink Restored: Syncing {syncCount} Signals...</span>
-      </div>
-    </div>
-  );
+  if (!isOffline && syncCount === 0) return null;
 
   return (
-    <div className="fixed top-0 left-0 right-0 z-[200] bg-rose-600 text-white px-4 py-2 text-center text-xs font-black uppercase tracking-[0.2em] shadow-xl animate-in slide-in-from-top duration-500 flex items-center justify-center gap-4">
-      <div className="flex items-center gap-2">
-        <i className="fas fa-wifi-slash animate-pulse"></i> 
-        <span>Offline Logic Active</span>
-      </div>
-      <div className="w-px h-4 bg-white/20"></div>
-      <span className="text-[10px] opacity-80">AI Services Suspended • Local Data Secured</span>
+    <div className={`fixed top-4 left-1/2 -translate-x-1/2 z-[500] px-6 py-3 rounded-full shadow-2xl flex items-center gap-4 border transition-all duration-500 animate-in slide-in-from-top-4 ${
+      isOffline ? 'bg-rose-600 border-rose-500 text-white' : 'bg-brand-600 border-brand-500 text-white'
+    }`}>
+      <i className={`fas ${isOffline ? 'fa-wifi-slash' : 'fa-tower-broadcast'} animate-pulse`}></i>
+      <span className="text-[10px] font-black uppercase tracking-widest">
+        {isOffline ? 'Offline Mode Active' : `Syncing ${syncCount} Signals...`}
+      </span>
     </div>
   );
 };
@@ -109,7 +97,7 @@ const App = () => {
     try {
       const saved = localStorage.getItem('irsw_favorites');
       return saved ? new Set(JSON.parse(saved)) : new Set();
-    } catch(e) {
+    } catch(e: unknown) {
       return new Set();
     }
   });
@@ -131,7 +119,7 @@ const App = () => {
     try {
       const saved = localStorage.getItem('irsw_tables');
       return saved ? JSON.parse(saved) : INITIAL_TABLES;
-    } catch(e) {
+    } catch(e: unknown) {
       return INITIAL_TABLES;
     }
   });
@@ -144,7 +132,7 @@ const App = () => {
     try {
         const savedCart = localStorage.getItem('irsw_cart');
         return savedCart ? JSON.parse(savedCart) : [];
-    } catch (e) {
+    } catch (e: unknown) {
         return [];
     }
   });
@@ -155,33 +143,26 @@ const App = () => {
     try {
       const saved = localStorage.getItem('irsw_orders');
       return saved ? JSON.parse(saved) : MOCK_ORDERS;
-    } catch(e) {
+    } catch(e: unknown) {
       return MOCK_ORDERS;
     }
   });
 
-  // Background Sync Orchestration: Listen for signals from Service Worker
   useEffect(() => {
     const handleSWMessage = (event: MessageEvent) => {
       if (event.data && event.data.type === 'SYNC_ORDERS') {
         const syncedOrders = event.data.orders as Order[];
         setSyncCount(syncedOrders.length);
         
-        // Merge synced data into operational state
         setOrders(prev => {
           const existingIds = new Set(prev.map(o => o.id));
           const newUniqueOrders = syncedOrders.filter(o => !existingIds.has(o.id));
           return [...newUniqueOrders, ...prev];
         });
 
-        // Clear count after visualization delay
         setTimeout(() => {
           setSyncCount(0);
-          // Haptic-like feedback
-          const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2354/2354-preview.mp3');
-          audio.volume = 0.05;
-          audio.play().catch(() => {});
-        }, 2000);
+        }, 3000);
       }
     };
 
@@ -195,11 +176,9 @@ const App = () => {
     };
   }, []);
 
-  // Network Heartbeat Monitoring
   useEffect(() => {
     const handleOnline = () => {
       setIsOffline(false);
-      // Trigger sync buffer flush
       if (navigator.serviceWorker.controller) {
         navigator.serviceWorker.controller.postMessage({ type: 'CHECK_SYNC' });
       }
@@ -410,7 +389,6 @@ const App = () => {
             };
         });
 
-        // Trigger fetch request that the Service Worker can intercept for offline handling
         newOrders.forEach(order => {
           fetch('/api/sync-order', {
             method: 'POST',
@@ -419,11 +397,10 @@ const App = () => {
           }).then(res => res.json()).then(data => {
             if (!data.offline) {
               setOrders(prev => [order, ...prev]);
-            } else {
-              console.debug('[App] Transaction Signal captured by Service Worker buffer');
             }
-          }).catch(() => {
-            console.warn('[App] Local sync failure. Logic failed to propagate.');
+          }).catch((e: unknown) => {
+            // Background sync via Service Worker handles this
+            console.debug('Order buffered for background sync:', e instanceof Error ? e.message : 'Uplink down');
           });
         });
 
@@ -438,25 +415,15 @@ const App = () => {
           return;
       }
       createOrder(PaymentStatus.PENDING, undefined);
-      if (user?.role === Role.CUSTOMER) {
-          alert(isOffline ? "System Offline: Your request is held in local buffer." : "Request Received! Waiter validation pending.");
-      } else {
-          alert(isOffline ? "Network Dead: Logging entries to temporary offline vault." : "Transaction logged to central database.");
-      }
-  }, [createOrder, selectedTableId, user, isOffline]);
+  }, [createOrder, selectedTableId, user]);
 
   const handlePayment = useCallback(async (method: PaymentMethod, phone?: string) => {
-      if (isOffline && method === 'TELEBIRR') {
-        alert("Mobile wallet gateways require a live uplink. Switch to Cash/Card for offline processing.");
-        return;
-      }
-
       const newOrders = createOrder(PaymentStatus.PAID, method, phone);
       if (newOrders.length > 0) {
           setLastCompletedOrder(newOrders[0]); 
           setIsReceiptModalOpen(true);
       }
-  }, [createOrder, isOffline]);
+  }, [createOrder]);
 
   const handleUpdateOrderStatus = useCallback((id: string, status: OrderStatus) => {
       setOrders(prev => prev.map(o => o.id === id ? { ...o, status } : o));
@@ -464,6 +431,10 @@ const App = () => {
 
   const handleApproveGuestOrder = useCallback((order: Order) => {
     handleUpdateOrderStatus(order.id, OrderStatus.PENDING);
+  }, [handleUpdateOrderStatus]);
+
+  const handleRejectGuestOrder = useCallback((order: Order) => {
+    handleUpdateOrderStatus(order.id, OrderStatus.CANCELLED);
   }, [handleUpdateOrderStatus]);
 
   const handleAddReview = useCallback((review: Omit<Review, 'id' | 'timestamp' | 'customerName'>) => {
@@ -477,10 +448,6 @@ const App = () => {
   }, [user]);
 
   const handleVoiceOrder = useCallback(() => {
-    if (isOffline) {
-      alert("Neural synthesis requires network access. Use manual input.");
-      return;
-    }
     if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
         alert("Audio processing not supported in this environment.");
         return;
@@ -503,13 +470,9 @@ const App = () => {
     };
     recognition.onerror = () => setIsVoiceListening(false);
     recognition.start();
-  }, [menu, handleAddToCart, isOffline]);
+  }, [menu, handleAddToCart]);
 
   const handleMenuScan = useCallback(async (base64: string, availableCategories: MenuCategory[]) => {
-      if (isOffline) {
-        alert("Visual OCR digitization requires cloud processing.");
-        return;
-      }
       setIsMenuScanning(true);
       const newItems = await digitizeMenuFromImage(base64, availableCategories);
       setIsMenuScanning(false);
@@ -525,7 +488,7 @@ const App = () => {
           setScannedItems(formattedItems);
           setIsReviewModalOpen(true);
       }
-  }, [isOffline]);
+  }, []);
 
   const handleImportConfirmed = useCallback((items: MenuItem[]) => {
       setMenu(prev => [...prev, ...items]);
@@ -541,12 +504,7 @@ const App = () => {
       read: false
     };
     setNotifications(prev => [newNotif, ...prev]);
-    if (user?.staffCode === notif.targetStaffId) {
-      const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2354/2354-preview.mp3');
-      audio.volume = 0.1;
-      audio.play().catch(() => {});
-    }
-  }, [user]);
+  }, []);
 
   const handleUpdateTableAssignment = useCallback((tableId: string, staffId: string, staffName: string) => {
     setTables(prev => prev.map(t => {
@@ -554,13 +512,26 @@ const App = () => {
           handlePushNotification({
             targetStaffId: staffId,
             title: 'Station Assigned',
-            message: `You are lead lead for Table ${t.number}.`
+            message: `Lead for Table ${t.number}.`
           });
           return { ...t, assignedStaffId: staffId, assignedStaffName: staffName };
         }
         return t;
     }));
   }, [handlePushNotification]);
+
+  const handleGroupTables = useCallback((tableIds: string[], groupName: string) => {
+    const gid = `group_${Date.now()}`;
+    setTables(prev => prev.map(t => 
+        tableIds.includes(t.id) ? { ...t, groupId: gid, groupName } : t
+    ));
+  }, []);
+
+  const handleUngroupTables = useCallback((groupId: string) => {
+      setTables(prev => prev.map(t => 
+          t.groupId === groupId ? { ...t, groupId: undefined, groupName: undefined } : t
+      ));
+  }, []);
 
   const customerOrders = useMemo(() => {
     if (user?.role !== Role.CUSTOMER) return [];
@@ -582,20 +553,32 @@ const App = () => {
     <Suspense fallback={<LoadingFallback />}>
         <ConnectivityBanner isOffline={isOffline} syncCount={syncCount} />
         
-        <div className="fixed top-6 right-6 z-[300] flex flex-col gap-4 max-w-sm pointer-events-none">
+        {/* Intelligence Pulse Button */}
+        {user && (
+            <button 
+                onClick={() => setIsAssistantOpen(true)}
+                className="fixed bottom-6 right-6 z-[400] w-16 h-16 bg-brand-600 text-white rounded-[2rem] shadow-glow flex items-center justify-center hover:scale-110 active:scale-90 transition-all group"
+                aria-label="Summon Assistant"
+            >
+                <div className="absolute inset-0 bg-brand-400 rounded-[2rem] animate-ping opacity-20 group-hover:opacity-40"></div>
+                <i className="fas fa-wand-magic-sparkles text-xl relative z-10 group-hover:rotate-12 transition-transform"></i>
+            </button>
+        )}
+
+        <div className="fixed top-20 right-6 z-[400] flex flex-col gap-4 max-w-sm pointer-events-none">
           {currentStaffNotifs.map(n => (
-            <div key={n.id} className="bg-slate-900 text-white p-6 rounded-[2rem] shadow-2xl border border-white/10 flex items-start gap-5 animate-in slide-in-from-right-12 duration-500 pointer-events-auto">
+            <div key={n.id} className="bg-slate-900/95 backdrop-blur-xl text-white p-6 rounded-[2.5rem] shadow-2xl border border-white/10 flex items-start gap-5 animate-in slide-in-from-right-12 duration-500 pointer-events-auto">
               <div className="w-12 h-12 bg-brand-500 rounded-2xl flex items-center justify-center shrink-0 shadow-glow">
                 <i className="fas fa-tower-broadcast text-lg"></i>
               </div>
               <div className="flex-1">
-                <h4 className="font-black text-sm uppercase tracking-widest">{n.title}</h4>
-                <p className="text-xs text-slate-400 font-bold mt-1 leading-relaxed">{n.message}</p>
+                <h4 className="font-black text-sm uppercase tracking-widest leading-none">{n.title}</h4>
+                <p className="text-[11px] text-slate-400 font-bold mt-2 leading-relaxed">{n.message}</p>
                 <button 
                   onClick={() => setNotifications(prev => prev.map(it => it.id === n.id ? { ...it, read: true } : it))}
-                  className="mt-4 text-[10px] font-black uppercase text-brand-400 tracking-widest hover:text-brand-300"
+                  className="mt-4 text-[9px] font-black uppercase text-brand-400 tracking-widest hover:text-brand-300"
                 >
-                  Dismiss Signal
+                  Clear Signal
                 </button>
               </div>
             </div>
@@ -605,7 +588,7 @@ const App = () => {
         {!user ? (
             <AuthView onLogin={handleLogin} />
         ) : (
-            <div className="min-h-screen bg-gray-50 font-sans text-gray-900 overflow-hidden group">
+            <div className="min-h-screen bg-slate-50 font-sans text-slate-900 overflow-hidden group">
                 <Sidebar 
                     user={user} 
                     activeView={activeView} 
@@ -618,146 +601,148 @@ const App = () => {
                     badges={sidebarBadges}
                 />
                 
-                <main className={`transition-all duration-300 h-screen ${isSidebarCollapsed ? 'md:pl-20' : 'md:pl-72'} pl-0`}>
-                    {/* Mobile Header Toggle */}
-                    <div className="md:hidden flex items-center justify-between p-4 bg-white border-b border-slate-100 shrink-0 h-16 relative z-40">
+                <main className={`transition-all duration-500 h-screen ${isSidebarCollapsed ? 'md:pl-24' : 'md:pl-80'} pl-0`}>
+                    <div className="md:hidden flex items-center justify-between p-4 bg-white/80 backdrop-blur-md border-b border-slate-100 shrink-0 h-16 sticky top-0 z-40">
                       <button onClick={() => setIsMobileSidebarOpen(true)} className="w-10 h-10 flex items-center justify-center text-slate-900">
                         <i className="fas fa-bars-staggered text-xl"></i>
                       </button>
-                      <span className="font-black text-sm tracking-tighter uppercase">{RESTAURANT_NAME}</span>
-                      <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center text-xs font-black">
+                      <span className="font-black text-xs tracking-tighter uppercase">{RESTAURANT_NAME}</span>
+                      <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center text-[10px] font-black uppercase">
                         {user.name.charAt(0)}
                       </div>
                     </div>
 
-                    {(activeView === 'POS' || activeView === 'CUSTOMER') && (
-                        <>
-                        <POSView 
-                            menu={menu} 
-                            categories={INITIAL_CATEGORIES} 
-                            cart={cart}
-                            onItemClick={handleMenuClick}
-                            addToCart={handleAddToCart}
-                            removeFromCart={handleRemoveFromCart}
-                            updateCartQuantity={handleUpdateCartQuantity}
-                            updateCartItemGroup={handleUpdateCartItemGroup}
-                            submitOrder={handleSubmitOrder}
-                            onClearCart={handleClearCartRequest}
-                            handleVoiceOrder={handleVoiceOrder}
-                            isListening={isVoiceListening}
-                            onOpenAssistant={() => {
-                              if (isOffline) alert("Intelligence Concierge requires an active uplink.");
-                              else setIsAssistantOpen(true);
-                            }}
-                            userRole={user.role}
-                            onInitiatePayment={() => setIsOrderSummaryOpen(true)}
-                            onOpenHistory={() => setIsHistoryOpen(true)}
-                            selectedTable={selectedTable}
-                            onOpenTableMap={() => setIsTableModalOpen(true)}
-                            pendingGuestOrders={pendingGuestOrders}
-                            onApproveGuestOrder={handleApproveGuestOrder}
-                            favoriteIds={favoriteIds}
-                            onToggleFavorite={handleToggleFavorite}
-                        />
-                        <TableSelectionModal
-                            isOpen={isTableModalOpen}
-                            onClose={() => setIsTableModalOpen(false)}
-                            tables={tables}
-                            selectedTableId={selectedTableId}
-                            onSelectTable={(id) => {
-                                setSelectedTableId(id);
-                                setIsTableModalOpen(false);
-                            }}
-                            currentUserRole={user.role}
-                            currentStaffId={user.staffCode}
-                        />
-                        <OptionSelectionModal 
-                            item={selectedItemForOptions}
-                            isOpen={isOptionModalOpen}
-                            onClose={() => setIsOptionModalOpen(false)}
-                            onConfirm={handleConfirmOptions}
-                        />
-                        <ClearCartConfirmationModal 
-                            isOpen={isClearCartModalOpen}
-                            onClose={() => setIsClearCartModalOpen(false)}
-                            onConfirm={handleConfirmClearCart}
-                            itemCount={cart.reduce((acc, item) => acc + item.quantity, 0)}
-                            totalAmount={cart.reduce((acc, item) => acc + (item.price * item.quantity), 0)}
-                        />
-                        <AssistantModal
-                            isOpen={isAssistantOpen && !isOffline}
-                            onClose={() => setIsAssistantOpen(false)}
-                            menuContext={menu}
-                            cartContext={cart}
-                            userLocation={userLocation}
-                        />
-                        <OrderSummaryModal
-                            isOpen={isOrderSummaryOpen}
-                            onClose={() => setIsOrderSummaryOpen(false)}
-                            onConfirm={() => {
-                                setIsOrderSummaryOpen(false);
-                                setIsPaymentModalOpen(true);
-                            }}
-                            cart={cart}
-                        />
-                        <PaymentModal 
-                            isOpen={isPaymentModalOpen}
-                            onClose={() => setIsPaymentModalOpen(false)}
-                            totalAmount={cart.reduce((a, b) => a + (b.price * b.quantity), 0)}
-                            onConfirmPayment={handlePayment}
-                        />
-                        <ReceiptModal
-                            isOpen={isReceiptModalOpen}
-                            onClose={() => setIsReceiptModalOpen(false)}
-                            order={lastCompletedOrder}
-                        />
-                        <CustomerHistoryModal 
-                            isOpen={isHistoryOpen}
-                            onClose={() => setIsHistoryOpen(false)}
-                            orders={customerOrders}
-                            onAddReview={handleAddReview}
-                            existingReviews={reviews}
-                        />
-                        </>
-                    )}
-
-                    {activeView === 'KDS' && (
-                        <KDSView 
-                            orders={orders} 
-                            updateOrderStatus={handleUpdateOrderStatus} 
-                        />
-                    )}
-
-                    {activeView.startsWith('ADMIN') && (
-                        <>
-                            <AdminView 
-                                activeSection={activeView}
-                                orders={orders}
-                                menu={menu}
-                                categories={INITIAL_CATEGORIES}
-                                ingredients={ingredients}
+                    <div className="h-full overflow-hidden">
+                        {(activeView === 'POS' || activeView === 'CUSTOMER') && (
+                            <>
+                            <POSView 
+                                menu={menu} 
+                                categories={INITIAL_CATEGORIES} 
+                                cart={cart}
+                                onItemClick={handleMenuClick}
+                                addToCart={handleAddToCart}
+                                removeFromCart={handleRemoveFromCart}
+                                updateCartQuantity={handleUpdateCartQuantity}
+                                updateCartItemGroup={handleUpdateCartItemGroup}
+                                submitOrder={handleSubmitOrder}
+                                onClearCart={handleClearCartRequest}
+                                handleVoiceOrder={handleVoiceOrder}
+                                isListening={isVoiceListening}
+                                onOpenAssistant={() => setIsAssistantOpen(true)}
+                                userRole={user.role}
+                                onInitiatePayment={() => setIsOrderSummaryOpen(true)}
+                                onOpenHistory={() => setIsHistoryOpen(true)}
+                                selectedTable={selectedTable}
+                                onOpenTableMap={() => setIsTableModalOpen(true)}
+                                pendingGuestOrders={pendingGuestOrders}
+                                onApproveGuestOrder={handleApproveGuestOrder}
+                                onRejectGuestOrder={handleRejectGuestOrder}
+                                favoriteIds={favoriteIds}
+                                onToggleFavorite={handleToggleFavorite}
+                            />
+                            <TableSelectionModal
+                                isOpen={isTableModalOpen}
+                                onClose={() => setIsTableModalOpen(false)}
                                 tables={tables}
-                                onScanMenu={handleMenuScan}
-                                onToggleAvailability={handleToggleAvailability}
-                                updateOrderStatus={handleUpdateOrderStatus}
-                                isMenuScanning={isMenuScanning}
-                                onUpdateIngredientStock={handleUpdateIngredientStock}
-                                onAddIngredient={handleAddIngredient}
-                                onUpdateMenuItem={handleUpdateMenuItem}
-                                onUpdateMenuItemPrice={handleUpdateMenuItemPrice}
-                                reviews={reviews}
-                                onUpdateTableAssignment={handleUpdateTableAssignment}
+                                selectedTableId={selectedTableId}
+                                onSelectTable={(id) => {
+                                    setSelectedTableId(id);
+                                    setIsTableModalOpen(false);
+                                }}
+                                currentUserRole={user.role}
+                                currentStaffId={user.staffCode}
                             />
-                            <MenuReviewModal 
-                                isOpen={isReviewModalOpen}
-                                onClose={() => setIsReviewModalOpen(false)}
-                                onConfirm={handleImportConfirmed}
-                                items={scannedItems}
-                                categories={INITIAL_CATEGORIES}
+                            <OptionSelectionModal 
+                                item={selectedItemForOptions}
+                                isOpen={isOptionModalOpen}
+                                onClose={() => setIsOptionModalOpen(false)}
+                                onConfirm={handleConfirmOptions}
                             />
-                        </>
-                    )}
+                            <ClearCartConfirmationModal 
+                                isOpen={isClearCartModalOpen}
+                                onClose={() => setIsClearCartModalOpen(false)}
+                                onConfirm={handleConfirmClearCart}
+                                itemCount={cart.reduce((acc, item) => acc + item.quantity, 0)}
+                                totalAmount={cart.reduce((acc, item) => acc + (item.price * item.quantity), 0)}
+                            />
+                            <OrderSummaryModal
+                                isOpen={isOrderSummaryOpen}
+                                onClose={() => setIsOrderSummaryOpen(false)}
+                                onConfirm={() => {
+                                    setIsOrderSummaryOpen(false);
+                                    setIsPaymentModalOpen(true);
+                                }}
+                                cart={cart}
+                            />
+                            <PaymentModal 
+                                isOpen={isPaymentModalOpen}
+                                onClose={() => setIsPaymentModalOpen(false)}
+                                totalAmount={cart.reduce((a, b) => a + (b.price * b.quantity), 0)}
+                                onConfirmPayment={handlePayment}
+                            />
+                            <ReceiptModal
+                                isOpen={isReceiptModalOpen}
+                                onClose={() => setIsReceiptModalOpen(false)}
+                                order={lastCompletedOrder}
+                            />
+                            <CustomerHistoryModal 
+                                isOpen={isHistoryOpen}
+                                onClose={() => setIsHistoryOpen(false)}
+                                orders={customerOrders}
+                                onAddReview={handleAddReview}
+                                existingReviews={reviews}
+                            />
+                            </>
+                        )}
+
+                        {activeView === 'KDS' && (
+                            <KDSView 
+                                orders={orders} 
+                                updateOrderStatus={handleUpdateOrderStatus} 
+                            />
+                        )}
+
+                        {activeView.startsWith('ADMIN') && (
+                            <>
+                                <AdminView 
+                                    activeSection={activeView}
+                                    orders={orders}
+                                    menu={menu}
+                                    categories={INITIAL_CATEGORIES}
+                                    ingredients={ingredients}
+                                    tables={tables}
+                                    onScanMenu={handleMenuScan}
+                                    onToggleAvailability={handleToggleAvailability}
+                                    updateOrderStatus={handleUpdateOrderStatus}
+                                    isMenuScanning={isMenuScanning}
+                                    onUpdateIngredientStock={handleUpdateIngredientStock}
+                                    onAddIngredient={handleAddIngredient}
+                                    onUpdateMenuItem={handleUpdateMenuItem}
+                                    onUpdateMenuItemPrice={handleUpdateMenuItemPrice}
+                                    reviews={reviews}
+                                    onUpdateTableAssignment={handleUpdateTableAssignment}
+                                    onGroupTables={handleGroupTables}
+                                    onUngroupTables={handleUngroupTables}
+                                />
+                                <MenuReviewModal 
+                                    isOpen={isReviewModalOpen}
+                                    onClose={() => setIsReviewModalOpen(false)}
+                                    onConfirm={handleImportConfirmed}
+                                    items={scannedItems}
+                                    categories={INITIAL_CATEGORIES}
+                                />
+                            </>
+                        )}
+                    </div>
                 </main>
+
+                <AssistantModal
+                    isOpen={isAssistantOpen}
+                    onClose={() => setIsAssistantOpen(false)}
+                    menuContext={menu}
+                    cartContext={cart}
+                    userLocation={userLocation}
+                />
             </div>
         )}
     </Suspense>

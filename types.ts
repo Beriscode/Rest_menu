@@ -81,6 +81,8 @@ export interface Table {
   shape: 'SQUARE' | 'CIRCLE' | 'RECTANGLE';
   assignedStaffId?: string;
   assignedStaffName?: string;
+  groupId?: string;
+  groupName?: string;
 }
 
 export interface CartItem extends MenuItem {

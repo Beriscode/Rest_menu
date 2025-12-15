@@ -1,9 +1,8 @@
 
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
-import { MenuItem, MenuCategory, MenuItemOption, Order, OrderStatus, PaymentStatus, Role, PaymentMethod, Review, CartItem, Table, TableStatus, CartGroup } from '../types';
+import { MenuItem, MenuCategory, MenuItemOption, Order, OrderStatus, Role, PaymentMethod, Review, CartItem, Table, TableStatus, CartGroup } from '../types';
 import { Button } from './Button';
 import { askAssistant } from '../services/geminiService';
-import { RESTAURANT_NAME } from '../constants';
 import { downloadInvoice } from '../services/invoiceService';
 
 interface ChatMessage {
@@ -294,7 +293,18 @@ export const PaymentModal = ({ isOpen, onClose, totalAmount, onConfirmPayment }:
     if (!isOpen) return null;
     const handleConfirm = async () => {
         setIsProcessing(true);
-        try { await onConfirmPayment(method, phone); onClose(); } catch (e: any) { alert(e.message || "Payment Failed"); } finally { setIsProcessing(false); }
+        try { 
+            await onConfirmPayment(method, phone); 
+            onClose(); 
+        } catch (e: unknown) { 
+            if (e instanceof Error && e.message) {
+                alert(e.message);
+            } else {
+                alert(String(e) || "Payment Failed");
+            }
+        } finally { 
+            setIsProcessing(false); 
+        }
     };
     return (
         <div className="fixed inset-0 z-[150] flex items-center justify-center p-4 sm:p-8">
@@ -450,7 +460,7 @@ export const ReceiptModal = ({ isOpen, onClose, order }: { isOpen: boolean, onCl
     return (
         <div className="fixed inset-0 z-[160] flex items-center justify-center p-0 sm:p-8">
             <div className="absolute inset-0 bg-slate-950/90 backdrop-blur-xl" onClick={onClose}></div>
-            <div className="bg-white rounded-none sm:rounded-[4rem] shadow-2xl w-full max-w-lg relative z-10 p-8 sm:p-12 overflow-hidden animate-in zoom-in-95 flex flex-col items-center text-center h-full sm:h-auto overflow-y-auto">
+            <div className="bg-white rounded-none sm:rounded-[4rem] shadow-2xl w-full max-lg relative z-10 p-8 sm:p-12 overflow-hidden animate-in zoom-in-95 flex flex-col items-center text-center h-full sm:h-auto overflow-y-auto">
                 <div className="w-20 h-20 sm:w-24 sm:h-24 bg-emerald-50 text-emerald-500 rounded-full flex items-center justify-center text-3xl sm:text-4xl mb-6 sm:mb-8 animate-bounce mt-safe"><i className="fas fa-check-double"></i></div>
                 <h3 className="text-3xl sm:text-4xl font-black text-slate-900 tracking-tighter uppercase mb-2">Success Uplink</h3>
                 <p className="text-slate-400 text-[9px] sm:text-[10px] font-black uppercase tracking-[0.3em] mb-8 sm:mb-10">REF: #{order.id.slice(-8)}</p>

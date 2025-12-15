@@ -19,33 +19,31 @@ const initApp = () => {
 
   /**
    * Service Worker Registration with Enhanced Sandbox Protection
-   * In many cloud preview environments (like AI Studio), service workers are restricted 
-   * due to cross-origin isolation or iframe sandboxing.
    */
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
-      // Use a relative path directly for the service worker. 
-      // Browsers handle relative paths better in sandboxes than absolute URLs.
+      // Normalizing path to ensure consistent scope across environments
       const swPath = './sw.js';
       
-      navigator.serviceWorker.register(swPath)
+      navigator.serviceWorker.register(swPath, { scope: './' })
         .then(registration => {
-          console.debug('IRSW Service Worker registered:', registration.scope);
+          console.debug('IRSW Service Worker active. Scope:', registration.scope);
         })
-        .catch(err => {
-          // Log as debug rather than error if it's a known origin/security mismatch 
-          // to keep the console clean for developers.
-          if (err.name === 'SecurityError' || err.message.includes('origin')) {
+        .catch((e: unknown) => {
+          // Robust error narrowing for ESLint compliance
+          const errorMessage = e instanceof Error ? e.message : String(e);
+          const errorName = e instanceof Error ? e.name : 'UnknownError';
+
+          if (errorName === 'SecurityError' || errorMessage.includes('origin')) {
             console.debug('IRSW Service Worker skipped: Environment restriction (Cross-Origin/Sandbox).');
           } else {
-            console.warn('IRSW Service Worker failed to initialize:', err);
+            console.warn('IRSW Service Worker registration failed:', errorMessage);
           }
         });
     });
   }
 };
 
-// Ensure DOM is ready before initializing React root
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', initApp);
 } else {
